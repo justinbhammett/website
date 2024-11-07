@@ -27,6 +27,6 @@ class TextNode:
 
 def main():
     text1 = TextNode("What is this?", TextType.BOLD, "https://www.boot.dev")
-    print(text1)
+    # print(text1)
 
 main()

@@ -190,56 +190,81 @@ def markdown_to_blocks(text):
     return new_output
 
 def block_to_block_type(text):
+    if (text.startswith("# ")
+        or text.startswith("## ")
+        or text.startswith("### ")
+        or text.startswith("#### ")
+        or text.startswith("##### ")
+        or text.startswith("###### ")):
+        return "heading"
+    if text.startswith("``` ") and text.endswith(" ```"):
+        return "code"
+    if all(line.startswith(">" for line in text.split("\n"))):
+        return "quote"
+    if all(line.startswith("*") or line.startswith("-") for line in text.split("\n")):
+        return "unordered_list"
+    if block.startswith("1. "):
+        i = 1
+        for line in text.split("\n"):
+            if not line.startswith(f"{i}. "):
+                return "paragraph"
+            i += 1
+        return "ordered_list"
+    return "paragraph"
 
-    if text.startswith("#"):
-        header_level = 0 
-        while header_level < len(text) and text[header_level] == '#':
-            header_level += 1
-        if header_level > 6:
-            header_level = 6
-        return f"<h{header_level}>{text[header_level:]}</h{header_level}>"
 
-    if text.startswith("```") and text.endswith("```"):
-        return f"<code>{text[3:-3]} </code>"
+
+# def block_to_block_type(text):
+
+#     if text.startswith("#"):
+#         header_level = 0 
+#         while header_level < len(text) and text[header_level] == '#':
+#             header_level += 1
+#         if header_level > 6:
+#             header_level = 6
+#         return f"<h{header_level}>{text[header_level:]}</h{header_level}>"
+
+#     if text.startswith("```") and text.endswith("```"):
+#         return f"<code>{text[3:-3]} </code>"
     
-    if text.startswith(">"):
-        new_text = text.split("\n")
-        stripped_lines = []
-        for line in new_text:
-            if line.startswith('>'):
-                stripped_lines.append(line[1:].strip())
-            else:
-                return text
-        return f"<q>{"\n".join(stripped_lines)}</q>"
+#     if text.startswith(">"):
+#         new_text = text.split("\n")
+#         stripped_lines = []
+#         for line in new_text:
+#             if line.startswith('>'):
+#                 stripped_lines.append(line[1:].strip())
+#             else:
+#                 return text
+#         return f"<q>{"\n".join(stripped_lines)}</q>"
     
-    if text.startswith("*") or text.startswith("-"):
-        new_text = text.split("\n")
-        html_list = ['<ul>']
-        for line in new_text:
-            stripped_line = line.strip()
-            if stripped_line.startswith('- ') or stripped_line.startswith('* '):
-                html_list.append(f'<li>{stripped_line[2:]}</li>')
-            else:
-                return text
-        html_list.append('</ul>')
-        return '\n'.join(html_list)
+#     if text.startswith("*") or text.startswith("-"):
+#         new_text = text.split("\n")
+#         html_list = ['<ul>']
+#         for line in new_text:
+#             stripped_line = line.strip()
+#             if stripped_line.startswith('- ') or stripped_line.startswith('* '):
+#                 html_list.append(f'<li>{stripped_line[2:]}</li>')
+#             else:
+#                 return text
+#         html_list.append('</ul>')
+#         return '\n'.join(html_list)
     
-    if text.startswith("1."):
-        lines = text.strip().split('\n')
-        html_list = ['<ol>']
-        expected_number = 1
-        for line in lines:
-            stripped_line = line.strip()
-            if stripped_line and stripped_line[0].isdigit() and stripped_line[1:3] == '. ':
-                line_number = int(stripped_line[0])
-                if line_number != expected_number:
-                    return text
-                html_list.append(f'<li>{stripped_line[3:]}</li>')
-                expected_number += 1
-            else:
-                return text
-        html_list.append('</ol>')
-        return '\n'.join(html_list)
+#     if text.startswith("1."):
+#         lines = text.strip().split('\n')
+#         html_list = ['<ol>']
+#         expected_number = 1
+#         for line in lines:
+#             stripped_line = line.strip()
+#             if stripped_line and stripped_line[0].isdigit() and stripped_line[1:3] == '. ':
+#                 line_number = int(stripped_line[0])
+#                 if line_number != expected_number:
+#                     return text
+#                 html_list.append(f'<li>{stripped_line[3:]}</li>')
+#                 expected_number += 1
+#             else:
+#                 return text
+#         html_list.append('</ol>')
+#         return '\n'.join(html_list)
         
 
 
@@ -273,10 +298,10 @@ def main():
     # print(split_nodes_link([text6]))
     # split_nodes_image([text5])
     # print(text_to_textnodes(text7))
-    text9 = "####### header 3"
+    # text9 = "####### header 3"
     # markdown_to_blocks(text8)
     # text_to_textnodes(text7)
-    print(block_to_block_type(text9))
+    # print(block_to_block_type(text9))
 main()
 
 

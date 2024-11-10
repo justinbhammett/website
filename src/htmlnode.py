@@ -1,84 +1,74 @@
 import re
 from textnode import *
 
-class HTMLNode():
+class HTMLNode:
     def __init__(self, tag=None, value=None, children=None, props=None):
         self.tag = tag
         self.value = value
-        self.children = children if children is not None else []
-        self.props = props
-
-    def to_html(self):
-        raise NotImplementedError
-    def props_to_html(self):
-        output_string = ""
-        for prop in self.props:
-            output_string += (" " + prop + "=\"" + self.props[prop] + "\"")
-        return (f"{output_string}")
-    def __eq__(self, other):
-        if isinstance(other, HTMLNode):
-            return (self.tag == other.tag and
-                    self.value == other.value and
-                    self.children == other.children and
-                    self.props == other.props)
-        return False
-    def __repr__(self):
-        return f"{' '.join(f'{key}={value}' for key, value in self.__dict__.items())}"
-
-class LeafNode(HTMLNode):
-    def __init__(self, tag, value, props=None):
-        super().__init__(tag, value, props)
-        self.tag = tag
-        self.value = value
-        self.props = props
-
-    def to_html(self):
-        if self.value is None:
-            raise ValueError("no value")
-        if self.tag is None:
-            return self.value
-        if self.props is None:
-            return f"<{self.tag}>{self.value}</{self.tag}>"
-        # prop_iteration = f"{' '.join(f'{key}="{value}"' for key, value in self.props.items())}"
-        prop_iteration = self.props_to_html()
-        return f"<{self.tag} {prop_iteration}>{self.value}</{self.tag}>"
-    
-class ParentNode(HTMLNode):
-    def __init__(self, tag, children, props=None):
-        super().__init__(tag, children, props=None)
-        self.tag = tag
         self.children = children
         self.props = props
 
     def to_html(self):
-        if self.tag is None:
-            raise ValueError("no tag")
-        if self.children is None:
-            raise ValueError("no children")
+        raise NotImplementedError("to_html method not implemented")
+
+    def props_to_html(self):
         if self.props is None:
-            return f"<{self.tag}>{self.value}</{self.tag}>"
-        child_iteration = f"{' '.join(f'{kid.to_html()}' for kid in self.children)}"
-        # prop_iteration = f"{' '.join(f'{key}="{value}"' for key, value in self.props.items())}"
-        prop_iteration = self.props_to_html()
-        return f"<{self.tag} {prop_iteration}>{child_iteration}</{self.tag}>"
-   
+            return ""
+        props_html = ""
+        for prop in self.props:
+            props_html += f' {prop}="{self.props[prop]}"'
+        return props_html
+
     def __repr__(self):
-            return f"ParentNode({self.tag}, children: {self.children}, {self.props})"
+        return f"HTMLNode({self.tag}, {self.value}, children: {self.children}, {self.props})"
+
+
+class LeafNode(HTMLNode):
+    def __init__(self, tag, value, props=None):
+        super().__init__(tag, value, None, props)
+
+    def to_html(self):
+        if self.value is None:
+            raise ValueError("Invalid HTML: no value")
+        if self.tag is None:
+            return self.value
+        return f"<{self.tag}{self.props_to_html()}>{self.value}</{self.tag}>"
+
+    def __repr__(self):
+        return f"LeafNode({self.tag}, {self.value}, {self.props})"
+
+
+class ParentNode(HTMLNode):
+    def __init__(self, tag, children, props=None):
+        super().__init__(tag, None, children, props)
+
+    def to_html(self):
+        if self.tag is None:
+            raise ValueError("No tag")
+        if self.children is None:
+            raise ValueError("Invalid HTML: no children")
+        children_html = ""
+        for child in self.children:
+            children_html += child.to_html()
+        return f"<{self.tag}{self.props_to_html()}>{children_html}</{self.tag}>"
+
+    def __repr__(self):
+        return f"ParentNode({self.tag}, children: {self.children}, {self.props})"
         
-def text_node_to_html_node(TextNode):
-    match TextNode.text_type:
+def text_node_to_html_node(textnode):
+    match textnode.text_type:
         case TextType.TEXT:
-            return LeafNode(tag=None, value=TextNode.text, props=None)
+            return LeafNode(tag=None, value=textnode.text, props=None)
         case TextType.BOLD:
-            return LeafNode(tag="b", value=TextNode.text, props=None)
+            return LeafNode(tag="b", value=textnode.text, props=None)
         case TextType.ITALIC:
-            return LeafNode(tag="i", value=TextNode.text, props=None)
+            return LeafNode(tag="i", value=textnode.text, props=None)
         case TextType.CODE:
-            return LeafNode(tag="code", value=TextNode.text, props=None)
+            return LeafNode(tag="code", value=textnode.text, props=None)
         case TextType.LINK:
-            return LeafNode(tag="a", value=TextNode.text, props={"href": TextNode.url})
+            return LeafNode(tag="a", value=textnode.text, props={"href": textnode.url})
         case TextType.IMAGE:
-            return LeafNode(tag="img", value="", props={"src": TextNode.url, "alt": TextNode.text})
+            return LeafNode(tag="img", value="", props={"src": textnode.url, "alt": textnode.text})
 
     raise Exception("Invalid type")
 
@@ -179,7 +169,8 @@ def text_to_textnodes(text):
     return output_nodes
         
 def markdown_to_blocks(text):
-    output = text.split("\n\n")
+    output = re.sub(r'\n{3,}', '\n\n', text)
+    output = output.split("\n\n")
     new_output = []
     for index, put in enumerate(output):
         if put == "":
@@ -197,13 +188,15 @@ def block_to_block_type(text):
         or text.startswith("##### ")
         or text.startswith("###### ")):
         return "heading"
-    if text.startswith("``` ") and text.endswith(" ```"):
+    if text.startswith("```") and text.endswith("```"):
         return "code"
-    if all(line.startswith(">" for line in text.split("\n"))):
+    if all(line.startswith(">") for line in text.split("\n")):
         return "quote"
-    if all(line.startswith("*") or line.startswith("-") for line in text.split("\n")):
+    if all(line.startswith("* ") for line in text.split("\n")):
         return "unordered_list"
-    if block.startswith("1. "):
+    if all(line.startswith("- ") for line in text.split("\n")):
+        return "unordered_list"
+    if text.startswith("1. "):
         i = 1
         for line in text.split("\n"):
             if not line.startswith(f"{i}. "):
@@ -212,59 +205,142 @@ def block_to_block_type(text):
         return "ordered_list"
     return "paragraph"
 
-
-
-# def block_to_block_type(text):
-
-#     if text.startswith("#"):
-#         header_level = 0 
-#         while header_level < len(text) and text[header_level] == '#':
-#             header_level += 1
-#         if header_level > 6:
-#             header_level = 6
-#         return f"<h{header_level}>{text[header_level:]}</h{header_level}>"
-
-#     if text.startswith("```") and text.endswith("```"):
-#         return f"<code>{text[3:-3]} </code>"
+def header_node(text):
+    new_text = text.split("\n")
+    all_headers = []
+  
     
-#     if text.startswith(">"):
-#         new_text = text.split("\n")
-#         stripped_lines = []
-#         for line in new_text:
-#             if line.startswith('>'):
-#                 stripped_lines.append(line[1:].strip())
-#             else:
-#                 return text
-#         return f"<q>{"\n".join(stripped_lines)}</q>"
+    for nt in new_text:
+        nt = nt.strip()  # Remove leading/trailing whitespace
+        if not nt.startswith("#"):
+            continue  # Skip lines that aren't headers
+        
+        header_level = 0
+        
+        # Calculate header level for this line
+        while header_level < len(nt) and nt[header_level] == '#':
+            header_level += 1
+        if header_level > 6:
+            header_level = 6
+        
+        children = t2c(nt[header_level:].strip())  # Strip leading spaces after header level
+        
+        # Only add if it's indeed a header
+        header_node = ParentNode(tag="h"+str(header_level), children=children)
+        all_headers.append(header_node)
+        # print(all_headers)
     
-#     if text.startswith("*") or text.startswith("-"):
-#         new_text = text.split("\n")
-#         html_list = ['<ul>']
-#         for line in new_text:
-#             stripped_line = line.strip()
-#             if stripped_line.startswith('- ') or stripped_line.startswith('* '):
-#                 html_list.append(f'<li>{stripped_line[2:]}</li>')
-#             else:
-#                 return text
-#         html_list.append('</ul>')
-#         return '\n'.join(html_list)
+    return all_headers
+
+
+# def header_node(block):
+#     level = 0
+#     for char in block:
+#         if char == "#":
+#             level += 1
+#         else:
+#             break
+#     if level + 1 >= len(block):
+#         raise ValueError(f"Invalid heading level: {level}")
+#     text = block[level + 1 :]
+#     children = t2c(text)
+#     return ParentNode(f"h{level}", children)
+
+def code_node(text):
+    children = t2c(text[3:-3])
+    child = HTMLNode(tag="code",children=children, props=None)
+    parent = ParentNode(tag="pre", children=(child,))
+    return parent
+
+def quote_node(text):
+    new_text = text.split("\n")
+    stripped_lines = []
+    for line in new_text:
+        stripped_lines.append(line[1:].strip())
+    children = t2c(" ".join(stripped_lines))
+    children = [children] if not isinstance(children, list) else children
+    output = ParentNode(tag="blockquote", children=children)
+    return output
+
+def unordered_list_node(text):
+    new_text = text.split("\n")
+    items = []
+    for line in new_text:
+        stripped_line = line.strip()
+        child = t2c(stripped_line[2:])
+        items.append(ParentNode("li", child))
+    return ParentNode("ul", children=items)
+
+def ordered_list_node(text):
+    lines = text.strip().split('\n')
+    items = []
+    expected_number = 1
+    for line in lines:
+        stripped_line = line.strip()
+        match = re.match(r'^(\d+)', stripped_line)
+        ct = len(match.group(1))
+        if stripped_line and bool(match) and stripped_line[ct:ct+2] == '. ':
+            line_number = int(match.group(1))
+            if line_number != expected_number:
+                raise Exception("Not numbered correctly")
+            child = t2c(stripped_line[ct+2:])
+            items.append(ParentNode("li", children=child))
+            expected_number += 1
+    return ParentNode("ol", children=items)
+
+def paragraph_node(text):
+    lines = text.split("\n")
+    paragraph = " ".join(lines)
+    children = t2c(paragraph)
+    return ParentNode("p", children)
+
+
+def text_to_children(text, block_type):
+
+    if block_type=="heading":
+        return header_node(text)
+
+    if block_type=="code":
+        return code_node(text)
     
-#     if text.startswith("1."):
-#         lines = text.strip().split('\n')
-#         html_list = ['<ol>']
-#         expected_number = 1
-#         for line in lines:
-#             stripped_line = line.strip()
-#             if stripped_line and stripped_line[0].isdigit() and stripped_line[1:3] == '. ':
-#                 line_number = int(stripped_line[0])
-#                 if line_number != expected_number:
-#                     return text
-#                 html_list.append(f'<li>{stripped_line[3:]}</li>')
-#                 expected_number += 1
-#             else:
-#                 return text
-#         html_list.append('</ol>')
-#         return '\n'.join(html_list)
+    if block_type=="quote":
+        return quote_node(text)
+    
+    if block_type=="unordered_list":
+        return unordered_list_node(text)
+    
+    if block_type=="ordered_list":
+        return ordered_list_node(text)
+    
+    if block_type=="paragraph":
+        return paragraph_node(text)
+    
+
+
+def t2c(text):
+    text_nodes = text_to_textnodes(text)
+    children = []
+    for text_node in text_nodes:
+        html_node = text_node_to_html_node(text_node)
+        children.append(html_node)
+    return children
+
+def markdown_to_html_node(markdown):
+    blocks = markdown_to_blocks(markdown)
+    parent = ParentNode(tag="div", children=[], props=None)
+
+    for block in blocks:
+        block_type = block_to_block_type(block)
+        if isinstance(text_to_children(block, block_type),list):
+            parent.children.extend(text_to_children(block, block_type))
+        else:
+            parent.children.append(text_to_children(block, block_type))
+        # print(block)
+        # print(block_type)
+        # print(text_to_children(block, block_type))
+        # print(header_node(block))
+  
+    return parent
         
 
 
@@ -295,13 +371,20 @@ def main():
     text6 = TextNode("This is text with a link in it [link 1](http://www.google.com)", TextType.TEXT)
     text7 = "This is **text** with an *italic* word and a `code block` and an ![obi wan image](https://i.imgur.com/fJRm4Vk.jpeg) and a [link](https://boot.dev)"
     text8 = "     This is a test\n\n\n\n block 2\n\n block 3\n  block 3a  \nblock3b"
+    text9 = "# head1 \n ## **head2** oof\n ### head3"
     # print(split_nodes_link([text6]))
     # split_nodes_image([text5])
     # print(text_to_textnodes(text7))
     # text9 = "####### header 3"
-    # markdown_to_blocks(text8)
+    # print(markdown_to_blocks(text9))
     # text_to_textnodes(text7)
     # print(block_to_block_type(text9))
+    print(markdown_to_html_node(text9))
+    # print(t2c(text9))
+    # print(block_to_block_type(text9))
+    # t2c(text7)
+    # print(header_node(text9))
+
 main()
 
 

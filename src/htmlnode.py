@@ -248,7 +248,7 @@ def header_node(text):
 
 def code_node(text):
     children = t2c(text[3:-3])
-    child = HTMLNode(tag="code",children=children, props=None)
+    child = ParentNode(tag="code",children=children, props=None)
     parent = ParentNode(tag="pre", children=(child,))
     return parent
 
@@ -379,7 +379,7 @@ def main():
     # print(markdown_to_blocks(text9))
     # text_to_textnodes(text7)
     # print(block_to_block_type(text9))
-    print(markdown_to_html_node(text9))
+    # print(markdown_to_html_node(text9))
     # print(t2c(text9))
     # print(block_to_block_type(text9))
     # t2c(text7)
